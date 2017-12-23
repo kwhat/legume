@@ -1,0 +1,41 @@
+{
+    "name": "kwhat/legume",
+    "homepage": "https://github.com/kwhat/legume",
+    "description": "Multi-thread Beanstalk Job Manager and Daemon",
+    "keywords": ["daemon", "job", "manager", "beanstalk", "pheanstalk", "pthreads", "worker", "pool"],
+    "type": "library",
+    "license": "LGPL-3.0",
+    "authors": [
+        {
+            "name": "Alexander Barker",
+            "email": "alex@1stleg.com",
+            "homepage": "https://github.com/kwhat"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/kwhat/legume/issues"
+    },
+    "minimum-stability": "stable",
+    "require": {
+        "php": ">=5.6.30",
+        "ext-pthreads": ">=2.0",
+        "monolog/monolog": "^1.22",
+        "pda/pheanstalk": "~3.0",
+        "pimple/pimple": "^3.0",
+        "ulrichsg/getopt-php": "^3.0"
+    },
+    "suggest": {
+        "ext-win32service": "Needed to support XML format in class Foo",
+        "ext-pcntl": "Needed to support XML format in class Foo",
+        "ext-posix": "Needed to support XML format in class Foo",
+        "ext-sysvshm": "Needed to support XML format in class Foo"
+    },
+    "bin": [
+        "bin/legumed"
+    ],
+    "autoload": {
+        "psr-4": {
+            "Legume\\": "src/"
+        }
+    }
+}

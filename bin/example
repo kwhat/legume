@@ -1,0 +1,16 @@
+#!/usr/bin/env php
+<?php
+
+use Pheanstalk\Pheanstalk;
+
+// Load the Composer auto-loader.
+require_once(__DIR__ . "/../vendor/autoload.php");
+
+$client = new Pheanstalk("127.0.0.1");
+
+for ($i = 0; $i < 15; $i++) {
+    $seconds = rand(1, 60 * 1);
+
+    $client->useTube(str_replace("\\", "/", Legume\Job\Handler\Example::class))
+        ->put($seconds, Pheanstalk::DEFAULT_PRIORITY, Pheanstalk::DEFAULT_DELAY, Pheanstalk::DEFAULT_TTR);
+}
