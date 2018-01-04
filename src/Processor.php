@@ -52,7 +52,7 @@ class Processor
 
                 Option::create('p', "port", GetOpt::REQUIRED_ARGUMENT)
                     ->setDescription("Port number of the job queue")
-                    ->setDefaultValue(PheanstalkInterface::DEFAULT_PORT),
+                    ->setValidation('is_numeric'),
 
                 Option::create('t', "timeout", GetOpt::REQUIRED_ARGUMENT)
                     ->setDescription("The socket timeout for connecting to the job queue")
@@ -61,7 +61,7 @@ class Processor
 
             $managerOpts = array(
                 Option::create('j', "jobs", GetOpt::REQUIRED_ARGUMENT)
-                    ->setDescription("")
+                    ->setDescription("An array of available job callables to register with the manager")
                     ->setValidation('file_exists'),
 
                 Option::create('s', "size", GetOpt::REQUIRED_ARGUMENT)
@@ -70,25 +70,32 @@ class Processor
                     ->setDefaultValue(1),
             );
 
-            $suExecOpts = array(
-                Option::create('u', "user", GetOpt::REQUIRED_ARGUMENT)
-                    ->setDescription("Username to suExec the job manager process"),
-                Option::create('g', "group", GetOpt::REQUIRED_ARGUMENT)
-                    ->setDescription("Groupname to suExec the job manager process"),
-                Option::create('n', "nice", GetOpt::REQUIRED_ARGUMENT)
-                    ->setDescription("The system priority for the job manager process process")
-            );
+            $suExecOpts = array();
+            if (extension_loaded("pcntl")) {
+                $suExecOpts[] = Option::create('u', "user", GetOpt::REQUIRED_ARGUMENT)
+                    ->setDescription("Username to suExec the job manager process");
 
+                $suExecOpts[] = Option::create('g', "group", GetOpt::REQUIRED_ARGUMENT)
+                    ->setDescription("Groupname to suExec the job manager process");
+            }
+
+            if (extension_loaded("pcntl")) {
+                $suExecOpts[] = Option::create('n', "nice", GetOpt::REQUIRED_ARGUMENT)
+                    ->setDescription("The system priority for the job manager process process");
+            }
+
+            $daemonOpts = array();
+            if (extension_loaded("posix")) {
+                $daemonOpts[] = Option::create('D', "daemon")
+                        ->setDescription("Run the job manager as a background process")
+                        ->setDefaultValue(false);
+            }
 
             $cli = new GetOpt();
             $cli->addCommands(array(
                 Command::create("start", [$this, "start"])
                     ->setDescription("Start the Legume job manager")
-                    ->addOptions(array_merge($queueOpts, $managerOpts, $suExecOpts, array(
-                        Option::create('D', "daemon")
-                            ->setDescription("Run the job manager as a background process")
-                            ->setDefaultValue(false)
-                    ))),
+                    ->addOptions(array_merge($queueOpts, $managerOpts, $suExecOpts, $daemonOpts)),
 
                 Command::create("stop", "Processor::stop")
                     ->setDescription('Stop a job manager background process'),
@@ -296,13 +303,9 @@ class Processor
         $this->suExec();
 
         if ($opts->getOption("daemon")) {
-            if (strcasecmp(substr(PHP_OS, 0, 3), "Win") == 0) {
-                $pid = null;
-            } else {
-                $daemon = new Daemon();
-                $daemon->setLogger($this->container->get(static::LOGGER));
-                $pid = $daemon->start($workerPool);
-            }
+            $daemon = new Daemon();
+            $daemon->setLogger($this->container->get(static::LOGGER));
+            $pid = $daemon->start($workerPool);
         } else {
             $pid = getmypid();
         }

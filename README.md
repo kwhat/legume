@@ -37,23 +37,21 @@ need to start `./bin/legumed` with privileges using the root user or sudo comman
 ### Creating Jobs
 To create a Legume job, simply implement the [Legume\Job\HandlerInterface](src/Job/HandlerInterface.php) in your
 class and add the full namespace to the "jobs" array in the configuration file.  When a job is picked up by the worker,
-the `run($jobId, $workload)` method will be called with the current Gearman job id and the workload used when queueing
-the job.  No processing such as unserialze or json_decode will be applied to the workload.
+the `__invoke($jobId, $workload)` method will be called with the current job id and the workload used when queueing
+the job.  No processing such as `unserialze()` or `json_decode()` will be applied to the workload.
 
 ### Queueing Job Workloads
-Add jobs to the Legume queue is pretty straight forward.  Please note, the job handle should be the fully namespaced
-class that implements [Legume\Job\HandlerInterface](src/Job/HandlerInterface.php).  For a complete exmaple, see
-[bin/example](bin/example) for queueing jobs and [src/JobHandler/Example.php](src/JobHandler/Example.php) for the job
-handler.
+Legume does not provide any direct job queueing functionality.  Instead, the library used to communicate with the 
+intended job queue should be used.  The job name provided to the client must be a `callable` accessible to both the 
+client and the Legume job manager with a function signature matching `function (int $jobId, string $workload): int`.
 
 ```
-$client = new GearmanClient();
-$client->addServer("127.0.0.1", 4730);
+$client = new Pheanstalk("127.0.0.1");
 
-...
-$workload = "Hello World!";
-$result = $client->doBackground(MyProject\Jobs\Job::class, $workload, uniqid());
+$seconds = rand(15, 60 * 1);
 
+$client->useTube(str_replace("\\", "/", Legume\Job\Handler\Example::class))
+    ->put($seconds, Pheanstalk::DEFAULT_PRIORITY, Pheanstalk::DEFAULT_DELAY, Pheanstalk::DEFAULT_TTR);
 ```
 
 ## Configuration
