@@ -1,16 +1,14 @@
 <?php
-
+declare(ticks = 1);
 namespace Legume;
 
 use Exception;
-use GetOpt\GetOpt;
-use GetOpt\Option;
 use Monolog\Handler\SyslogHandler;
 use Monolog\Logger;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerInterface;
 
-class Daemon extends AbstractProcess
+class Service implements LoggerAwareInterface
 {
     /** @var LoggerInterface $log */
     protected $log;
@@ -22,27 +20,6 @@ class Daemon extends AbstractProcess
     {
         $this->log = new Logger(basename($_SERVER["SCRIPT_FILENAME"], ".php"));
         $this->log->pushHandler(new SyslogHandler($this->log->getName(), LOG_SYSLOG, Logger::WARNING));
-
-        $suExecOpts = array();
-        if (extension_loaded("pcntl")) {
-            $suExecOpts[] = Option::create('u', "user", GetOpt::REQUIRED_ARGUMENT)
-                ->setDescription("Username to suExec the job manager process");
-
-            $suExecOpts[] = Option::create('g', "group", GetOpt::REQUIRED_ARGUMENT)
-                ->setDescription("Groupname to suExec the job manager process");
-        }
-
-        if (extension_loaded("pcntl")) {
-            $suExecOpts[] = Option::create('n', "nice", GetOpt::REQUIRED_ARGUMENT)
-                ->setDescription("The system priority for the job manager process process");
-        }
-
-        $daemonOpts = array();
-        if (extension_loaded("posix")) {
-            $daemonOpts[] = Option::create('D', "daemon")
-                ->setDescription("Run the job manager as a background process")
-                ->setDefaultValue(false);
-        }
     }
 
     /**

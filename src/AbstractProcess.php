@@ -16,8 +16,9 @@ use Monolog\Logger;
 use Pheanstalk\Pheanstalk;
 use Pheanstalk\PheanstalkInterface;
 use Psr\Container\ContainerInterface as DI;
+use Psr\Log\LoggerAwareInterface;
 
-class Processor
+abstract class AbstractProcess implements LoggerAwareInterface
 {
     const AUTOLOAD = "autoload";
     const LOGGER = "logger";
@@ -35,7 +36,6 @@ class Processor
     public function __construct($container = [])
     {
         $this->container = new Pimple($container);
-
         $this->loadDependencies($this->container);
     }
 
@@ -70,32 +70,15 @@ class Processor
                     ->setDefaultValue(1),
             );
 
-            $suExecOpts = array();
-            if (extension_loaded("pcntl")) {
-                $suExecOpts[] = Option::create('u', "user", GetOpt::REQUIRED_ARGUMENT)
-                    ->setDescription("Username to suExec the job manager process");
 
-                $suExecOpts[] = Option::create('g', "group", GetOpt::REQUIRED_ARGUMENT)
-                    ->setDescription("Groupname to suExec the job manager process");
-            }
 
-            if (extension_loaded("pcntl")) {
-                $suExecOpts[] = Option::create('n', "nice", GetOpt::REQUIRED_ARGUMENT)
-                    ->setDescription("The system priority for the job manager process process");
-            }
 
-            $daemonOpts = array();
-            if (extension_loaded("posix")) {
-                $daemonOpts[] = Option::create('D', "daemon")
-                        ->setDescription("Run the job manager as a background process")
-                        ->setDefaultValue(false);
-            }
 
             $cli = new GetOpt();
             $cli->addCommands(array(
                 Command::create("start", [$this, "start"])
                     ->setDescription("Start the Legume job manager")
-                    ->addOptions(array_merge($queueOpts, $managerOpts, $suExecOpts, $daemonOpts)),
+                    ->addOptions($queueOpts + $managerOpts),
 
                 Command::create("stop", "Processor::stop")
                     ->setDescription('Stop a job manager background process'),
@@ -185,7 +168,7 @@ class Processor
         $container[ThreadPool::class] = function (DI $container) {
             /** @var GetOpt $opts */
             $opts = $container->get(GetOpt::class);
-            
+
             /** @var PheanstalkAdapter $adapter */
             $adapter = $container->get(PheanstalkAdapter::class);
             /** @var string $autoloader */

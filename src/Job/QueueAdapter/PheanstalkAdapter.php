@@ -23,6 +23,9 @@ class PheanstalkAdapter implements QueueAdaptorInterface
     /** @var LoggerInterface $log */
     protected $log;
 
+    /**
+     * @param DI $container Required for finding jobs.
+     */
     public function __construct(DI $container)
     {
         $this->client = $container->get(Pheanstalk::class);
@@ -83,7 +86,12 @@ class PheanstalkAdapter implements QueueAdaptorInterface
 
         return $stackable;
     }
-    
+
+    /**
+     * @param Stackable $work
+     *
+     * @return boolean;
+     */
     public function touch(Stackable $work)
     {
         $job = new Job($work->getId(), $work->getData());

@@ -19,14 +19,16 @@
     "require": {
         "php": "^5.6 || >=7.2",
         "ext-pthreads": ">=2.0",
+        "composer/composer": "^1.5",
         "monolog/monolog": "^1.22",
         "pda/pheanstalk": "~3.0",
         "pimple/pimple": "^3.0",
         "ulrichsg/getopt-php": "^3.0"
     },
     "suggest": {
-        "ext-pcntl": "Required for daemon support on Posix systems",
-        "ext-posix": "Required for service support on Posix systems"
+        "ext-pcntl": "Recommended for daemon support on Posix systems",
+        "ext-posix": "Recommended for daemon support on Posix systems",
+        "etc-win32service": "Recommended for service support on Windows systems"
     },
     "bin": [
         "bin/legumed"
