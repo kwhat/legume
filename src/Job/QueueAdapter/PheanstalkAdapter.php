@@ -2,37 +2,38 @@
 
 namespace Legume\Job\QueueAdapter;
 
+use Legume\Job\HandlerInterface;
 use Legume\Job\QueueAdaptorInterface;
 use Legume\Job\Stackable;
-use Monolog\Handler\NullHandler;
-use Monolog\Logger;
 use Pheanstalk\Job;
 use Pheanstalk\Pheanstalk;
 use Psr\Container\ContainerInterface as DI;
-use Psr\Log\NullLogger;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 class PheanstalkAdapter implements QueueAdaptorInterface
 {
-    /** @var DI $container */
-    private $container;
-
     /** @var Pheanstalk $client */
     protected $client;
+
+    /** @var DI $container */
+    protected $container;
+
+	/** @var callable[string] $jobs */
+	protected $jobs;
 
     /** @var LoggerInterface $log */
     protected $log;
 
-    /**
-     * @param DI $container Required for finding jobs.
-     */
+	/**
+	 * @param DI $container
+	 */
     public function __construct(DI $container)
     {
         $this->client = $container->get(Pheanstalk::class);
         $this->container = $container;
-
-        $this->log = new Logger(basename($_SERVER["SCRIPT_FILENAME"], ".php"));
-        $this->log->pushHandler(new NullHandler(Logger::DEBUG));
+        $this->jobs = array();
+		$this->log = new NullLogger();
     }
 
     /**
@@ -45,27 +46,27 @@ class PheanstalkAdapter implements QueueAdaptorInterface
         }
     }
 
-    /**
-     * @param string $callback
-     */
-    public function register($callback)
+	/**
+	 * @inheritdoc
+	 */
+    public function register($name, $callback)
     {
-        $this->client->watch(str_replace("\\", "/", $callback));
+		$this->jobs[$name] = $callback;
+        $this->client->watch($name);
     }
 
-    /**
-     * @param string $callback
-     */
-    public function unregister($callback)
+	/**
+	 * @inheritdoc
+	 */
+    public function unregister($name)
     {
-        $this->client->ignore(str_replace("\\", "/", $callback));
+        $this->client->ignore($name);
+        unset($this->jobs[$name]);
     }
 
-    /**
-     * @param int|null $timeout
-     *
-     * @return Stackable|null
-     */
+	/**
+	 * @inheritdoc
+	 */
     public function listen($timeout = null)
     {
         $stackable = null;
@@ -73,25 +74,37 @@ class PheanstalkAdapter implements QueueAdaptorInterface
         $job = $this->client->reserve($timeout);
         if ($job !== false) {
             $info = $this->client->statsJob($job);
-            $tube = str_replace("/", "\\", $info["tube"]);
+            $tube = $info["tube"];
 
-            if ($this->container->has($tube)) {
-                $stackable = new Stackable(
-                    $this->container->get($tube),
-                    $job->getId(),
-                    $job->getData()
-                );
-            }
+            if (isset($this->jobs[$tube])) {
+            	$callable = $this->jobs[$tube];
+
+            	if (is_string($callable) && in_array(HandlerInterface::class, class_implements($callable, true))) {
+					/** @var HandlerInterface $callable */
+            		$callable = new $callable();
+					$callable->setLogger($this->log);
+				}
+
+				if (is_callable($callable)) {
+            		$stackable = new Stackable(
+						$callable,
+						$job->getId(),
+						$job->getData()
+					);
+				} else {
+            		$this->log->warning("Failed to locate callable for job '{$tube}'!");
+				}
+            } else {
+				$this->log->warning("No job registered for '{$tube}'!");
+			}
         }
 
         return $stackable;
     }
 
-    /**
-     * @param Stackable $work
-     *
-     * @return boolean;
-     */
+	/**
+	 * @inheritdoc
+	 */
     public function touch(Stackable $work)
     {
         $job = new Job($work->getId(), $work->getData());
@@ -119,11 +132,9 @@ class PheanstalkAdapter implements QueueAdaptorInterface
         $this->client->release($job);
     }
 
-    /**
-     * Sets a logger instance on the object.
-     *
-     * @param LoggerInterface $logger
-     */
+	/**
+	 * @inheritdoc
+	 */
     public function setLogger(LoggerInterface $logger)
     {
         $this->log = $logger;

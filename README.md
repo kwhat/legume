@@ -1,5 +1,4 @@
-# Legume: A multi-thread job manager and daemon
-A robust light weight thread based job manager with Windows service and Linux OS X daemon support.
+# Legume: A multi-thread job manager for beanstalkd
 
 Creating and managing a pool of workers for parallel processing can be a challenging endeavor.  Fortunately,
 Legume provides a simple interface for creating a pool to track currently running workers, and adjust
@@ -24,8 +23,6 @@ The daemon manager can be accessed via `./bin/legumed --help`.
    Commands:
      start    Start the worker
      stop     Stop the worker
-     restart  Restart the worker
-     reload   Reload the worker configuration
 ```
 
 To start the daemon, simply call `./bin/legumed start`.  If you would like to start a background process,
@@ -56,7 +53,13 @@ $client->useTube(str_replace("\\", "/", Legume\Job\Handler\Example::class))
 
 ## Configuration
 Daemon configuration is all handled though a PHP file that returns an array with 4 top level elements: daemon, options,
-servers and jobs.  Example configuration can be found in [conf/gearmandwd.php](conf/gearmandwd.php).
+servers and jobs.  Example configuration can be found in [conf/legumed.conf.php](conf/legumed.conf.php).
+
+
+### Jobs Section
+The jobs section is a numbered array of classes implementing the [JobHandlerInterface](src/JobHandlerInterface.php).
+All valid classes will be registered with all workers in the pool, any invalid class will be ignored.
+
 
 ### Daemon Section
 The daemon section contains configuration keys and values for the daemon process.
@@ -78,30 +81,6 @@ These are the options for the pool and workers.
 | maxJobs        | integer  | -1                  | The maximum job count per worker before forced restart, -1 unlimited
 | maxRuntime     | string   | -1                  | The maximum uptime per worker before forced restart, -1 unlimited
 
-### Servers Section
-This filed should contain a numbered array of gearmand server addresses.  The addresses should be an IP address,
-valid hostname, or FQDN.  An optional port maybe appended to the address of the server, if not specified, the **default
-port 4730** will be used.
-
-```
-"servers" => [
-    "127.0.0.1:4730",
-    "localhost",
-    "my.domain.tld:4790"
-],
-```
-
-### Jobs Section
-The jobs section is a numbered array of classes implementing the [JobHandlerInterface](src/JobHandlerInterface.php).
-All valid classes will be registered with all workers in the pool, any invalid class will be ignored.
-
-```
-"jobs" => [
-    GearmanWD\JobHandler\Example::class,
-    "MyProject\\Jobs\\MyGearmanWorker"
-],
-```
-
 ## Additional Information
 Up to date source code and documentation available at:
-[https://github.com/kwhat/legume/](https://github.com/kwhat/legume/)
+[https://github.com/kwhat/legumed/](https://github.com/kwhat/legumed/)

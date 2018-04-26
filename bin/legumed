@@ -8,11 +8,8 @@ if (PHP_SAPI == "cli") {
     // Load the Composer auto-loader.
     require_once($autoload);
 
-    // You must supply a file to require for auto-loading on Workers.
-    $config = array(Legume\Processor::AUTOLOAD => $autoload);
-
     // Create and start the new service.
-    $service = new Legume\Processor($config);
+    $service = new Legume\Daemon($autoload);
     $status = $service->run();
 }
 

@@ -3,10 +3,8 @@
 namespace Legume\Job\Handler;
 
 use Legume\Job\HandlerInterface;
-use Monolog\Handler\NullHandler;
-use Monolog\Logger;
-use Psr\Container\ContainerInterface as DI;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 class Example implements HandlerInterface
 {
@@ -16,13 +14,12 @@ class Example implements HandlerInterface
     /** @var LoggerInterface $log */
     protected $log;
 
-    public function __construct(DI $container)
-    {
-        $this->log = new Logger(basename($_SERVER["SCRIPT_FILENAME"], ".php"));
-        $this->log->pushHandler(new NullHandler(Logger::DEBUG));
-    }
+    public function __construct()
+	{
+		$this->log = new NullLogger();
+	}
 
-    /**
+	/**
      * @param string $jobId
      * @param string $workload
      *

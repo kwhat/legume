@@ -7,11 +7,22 @@ use Psr\Log\LoggerAwareInterface;
 
 interface QueueAdaptorInterface extends LoggerAwareInterface
 {
-    /**
-     * @param DI $container
-     */
-    public function __construct(DI $container);
-    
+	/**
+	 * QueueAdaptorInterface
+	 */
+	public function __construct(DI $container);
+
+	/**
+	 * @param string $name
+	 * @param callable|string $callback
+	 */
+	public function register($name, $callback);
+
+	/**
+	 * @param string $name
+	 */
+	public function unregister($name);
+
     /**
      * @param int|null $timeout
      * 
@@ -21,7 +32,6 @@ interface QueueAdaptorInterface extends LoggerAwareInterface
 
     /**
      * @param Stackable $work
-     * @return bool
      */
     public function touch(Stackable $work);
 

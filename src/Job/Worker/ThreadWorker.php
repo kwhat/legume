@@ -2,8 +2,8 @@
 
 namespace Legume\Job\Worker;
 
-use Psr\Log\NullLogger;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Worker;
 
 class ThreadWorker extends Worker
@@ -23,6 +23,7 @@ class ThreadWorker extends Worker
     public function __construct($autoload)
     {
         $this->autoload = $autoload;
+		$this->log = new NullLogger();
     }
 
     /**

@@ -9,10 +9,8 @@ interface HandlerInterface extends LoggerAwareInterface
 {
     /**
      * Default constructor.
-     *
-     * @param DI $container
      */
-    public function __construct(DI $container);
+    public function __construct();
 
     /**
      * Dispatcher callback for this job handler.

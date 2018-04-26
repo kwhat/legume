@@ -3,10 +3,9 @@
 namespace Legume\Job;
 
 use Exception;
-use Monolog\Handler\NullHandler;
-use Monolog\Logger;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Threaded;
 
 class Stackable extends Threaded implements LoggerAwareInterface
@@ -17,7 +16,7 @@ class Stackable extends Threaded implements LoggerAwareInterface
     /** @var int $id */
     protected $id;
 
-    /** @var int $log */
+    /** @var LoggerInterface $log */
     protected $log;
 
     /** @var string $workload */
@@ -27,36 +26,31 @@ class Stackable extends Threaded implements LoggerAwareInterface
     protected $complete;
 
     /**
-     * @param int $id
-     * @param string $workload
      * @param $callable $callable
+	 * @param int $id
+	 * @param string $workload
      */
     public function __construct(callable $callable, $id, $workload)
     {
         $this->callable = $callable;
         $this->id = $id;
+		$this->log = new NullLogger();
         $this->workload = $workload;
-
-        $this->log = new Logger(basename($_SERVER["SCRIPT_FILENAME"], ".php"));
-        $this->log->pushHandler(new NullHandler(Logger::DEBUG));
 
         $this->complete = false;
     }
 
     public function run()
     {
-        if ($this->callable instanceof LoggerAwareInterface) {
-            $this->callable->setLogger($this->log);
-        }
-
         try {
             // The dependency injector currently owns the callback, synchronize.
             $status = call_user_func($this->callable, $this->id, $this->workload);
-            var_dump($status);
         } catch (Exception $e) {
-            var_dump($e);
+            $this->log->critical($e->getTraceAsString());
+			$status = 255;
         }
 
+		//$this->terminated = ($status > 0);
         $this->complete = true;
     }
 
