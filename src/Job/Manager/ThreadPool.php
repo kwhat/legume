@@ -57,15 +57,10 @@ class ThreadPool extends Pool implements ManagerInterface
      */
 	public function shutdown()
 	{
-		$this->stop();
-		$this->collect();
-
 		// Cleanup the workers and unstack jobs.
 		parent::shutdown();
-	}
 
-	public function stop()
-	{
+		$this->collect();
 		$this->running = false;
 	}
 
@@ -116,29 +111,14 @@ class ThreadPool extends Pool implements ManagerInterface
             $collector = array($this, "collector");
         }
 
+        // Create a temp work buffer to reorder preserved work.
+        $work = array();
         foreach ($this->work as $i => $task) {
-            if (call_user_func($collector, $task)) {
-                unset($this->work[$i]);
+            if (!call_user_func($collector, $task)) {
+                $work[] = $this->work[$i];
             }
         }
-
-		// If there is no more work, clean-up works.
-		if (count($this->work) < 1 && count($this->workers) > 0) {
-			$this->log->debug("Checking " . count($this->workers) . " worker(s) for idle.");
-
-			foreach ($this->workers as $i => $worker) {
-				$stacked = $worker->getStacked();
-				if ($stacked < 1) {
-					if (! $worker->isShutdown()) {
-						$this->log->info("Shutting down worker {$i} due to idle.");
-						$worker->shutdown();
-					} else if ($worker->isJoined()) {
-						$this->log->info("Cleaning up worker {$i}.");
-						unset($this->workers[$i]);
-					}
-				}
-			}
-		}
+        $this->work = $work;
 
         return count($this->work);
     }
@@ -159,9 +139,6 @@ class ThreadPool extends Pool implements ManagerInterface
                 $this->log->info("Job {$work->getId()} completed successfully.");
                 $this->adaptor->complete($work);
             }
-        } else if (!$this->running) {
-			$this->log->debug("Returning job {$work->getId()} to the queue.");
-			$this->adaptor->retry($work);
 		} else {
             $this->log->debug("Requesting more time for job {$work->getId()}.");
             $this->adaptor->touch($work);
@@ -179,8 +156,7 @@ class ThreadPool extends Pool implements ManagerInterface
 		$this->startTime = time();
 
 		while ($this->running) {
-			// Don't pick up new jobs if the avarge stack size is larger than 1/2 the pool size.
-			if ($this->size > 0 && count($this->work) / $this->size < $this->size / 2) {
+			if ($this->size > count($this->work)) {
 				$stackable = $this->adaptor->listen(5);
 
 				if ($stackable !== null) {
@@ -191,9 +167,30 @@ class ThreadPool extends Pool implements ManagerInterface
 					} catch (RuntimeException $e) {
 						$this->log->warning($e->getMessage());
 					}
+				} else if (count($this->workers) > 0) {
+					// If there is no more work, clean-up works.
+					$this->log->debug("Checking " . count($this->workers) . " worker(s) for idle.");
+
+					$workers = array();
+					foreach ($this->workers as $i => $worker) {
+						$stacked = $worker->getStacked();
+						if ($stacked < 1) {
+							if (! $worker->isShutdown()) {
+								$this->log->info("Shutting down worker {$i} due to idle.");
+								$worker->shutdown();
+								$workers[] = $worker;
+							} else if ($worker->isJoined()) {
+								$this->log->info("Cleaning up worker {$i}.");
+							}
+						} else {
+							$workers[] = $worker;
+						}
+					}
+					$this->workers = $workers;
 				}
 			} else {
-				sleep(5);
+				$this->log->debug("Sleeping...");
+				sleep(1);
 			}
 
 			$this->collect();

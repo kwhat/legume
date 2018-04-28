@@ -25,11 +25,9 @@ interface ManagerInterface extends LoggerAwareInterface
     public function collect($collector = null);
 
 	/**
-	 * @inheritDoc
+	 * Shutdown the Workers in this Pool
 	 */
     public function shutdown();
-
-	public function stop();
 
 	/**
 	 * Runloop for this worker process.

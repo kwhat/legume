@@ -1,5 +1,5 @@
 <?php
-//declare(ticks = 1);
+
 namespace Legume;
 
 use Exception;
@@ -232,6 +232,38 @@ class Daemon implements LoggerAwareInterface
 		return $success;
 	}
 
+	private function suExec()
+	{
+		$niceness = $this->opts->getOption("nice");
+		if ($niceness !== null) {
+			if (!pcntl_setpriority($niceness, getmypid())) {
+				$this->log->alert("Failed to set processor priority.");
+			}
+		}
+
+		$group = $this->opts->getOption("group");
+		if ($group !== null) {
+			/** @var array $groupInfo */
+			$groupInfo = posix_getgrnam($group);
+			if (!isset($groupInfo["gid"])) {
+				$this->log->alert("Invalid processor group.");
+			} else if (!posix_setgid($groupInfo["gid"])) {
+				$this->log->alert("Failed to change processor group.");
+			}
+		}
+
+		$user = $this->opts->getOption("user");
+		if ($user !== null) {
+			/** @var array $userInfo */
+			$userInfo = posix_getpwnam($user);
+			if (!isset($userInfo["uid"])) {
+				$this->log->alert("Invalid pool user.");
+			} else if (!posix_setuid($userInfo["uid"])) {
+				$this->log->alert("Failed to change pool user.");
+			}
+		}
+	}
+
     /**
      * @throws Exception
      */
@@ -239,75 +271,62 @@ class Daemon implements LoggerAwareInterface
     {
 		$this->pool = $this->container->get(ThreadPool::class);
 
-		$pid = pcntl_fork();
-		switch ($pid) {
-			case 0: // Child
-				$childPid = posix_setsid();
+		if (function_exists("pcntl_async_signals")) {
+			pcntl_async_signals(true);
+		} else {
+			declare(ticks = 1);
+		}
 
-				if (function_exists("pcntl_async_signals")) {
-					pcntl_async_signals(true);
-				} else {
-					declare(ticks = 1);
-				}
+		$res = pcntl_signal(SIGTERM, [$this, "signal"]);
+		$res &= pcntl_signal(SIGINT, [$this, "signal"]);
+		$res &= pcntl_signal(SIGHUP, [$this, "signal"]);
+		//$res &= pcntl_signal(SIGCHLD, [$this, "signal"]);
+		//$res &= pcntl_signal(SIGALRM, array($this, "signal"));
+		//$res &= pcntl_signal(SIGTSTP, array($this, "signal"));
+		//$res &= pcntl_signal(SIGCONT, array($this, "signal"));
 
-				$res = pcntl_signal(SIGTERM, [$this, "signal"]);
-				$res &= pcntl_signal(SIGINT, [$this, "signal"]);
-				$res &= pcntl_signal(SIGHUP, [$this, "signal"]);
-				//$res &= pcntl_signal(SIGCHLD, [$this, "signal"]);
-				//$res &= pcntl_signal(SIGALRM, array($this, "signal"));
-				//$res &= pcntl_signal(SIGTSTP, array($this, "signal"));
-				//$res &= pcntl_signal(SIGCONT, array($this, "signal"));
+		if (! $res) {
+			throw new Exception("Function pcntl_signal() failed!");
+		}
 
-				if (!$res) {
-					$this->log->alert("Function pcntl_signal() failed!");
-				}
+		$daemon = $this->opts->getOption("daemon");
+		if ($daemon !== null) {
+			$pid = pcntl_fork();
+			switch ($pid) {
+				case 0: // Child
+					$childPid = posix_setsid();
+					$this->suExec();
 
-				$niceness = $this->opts->getOption("nice");
-				if ($niceness !== null) {
-					if (!pcntl_setpriority($niceness, getmypid())) {
-						$this->log->alert("Failed to set processor priority.");
+					$this->log->notice("Starting daemon process: {$childPid}.");
+					$this->pool->run();
+					$this->log->notice("Daemon process {$childPid} complete.");
+					exit(0);
+
+				case -1: // Error
+					$msg = pcntl_strerror(pcntl_get_last_error());
+					throw new Exception("Function pcntl_fork() failed: {$msg}");
+
+				default: // Parent
+					$this->log->debug("Forked worker process: {$pid}");
+					if (!$this->writePid($pid)) {
+						posix_kill($pid, SIGTERM);
+						throw new Exception("Failed to create pid file for the daemon process!");
 					}
-				}
+			}
+		} else {
+			$pid = posix_getpid();
+			if (! $this->writePid($pid)) {
+				throw new Exception("Failed to create pid file for the daemon process!");
+			}
 
-				$group = $this->opts->getOption("group");
-				if ($group !== null) {
-					/** @var array $groupInfo */
-					$groupInfo = posix_getgrnam($group);
-					if (!isset($groupInfo["gid"])) {
-						$this->log->alert("Invalid processor group.");
-					} else if (!posix_setgid($groupInfo["gid"])) {
-						$this->log->alert("Failed to change processor group.");
-					}
-				}
+			$this->suExec();
 
-				$user = $this->opts->getOption("user");
-				if ($user !== null) {
-					/** @var array $userInfo */
-					$userInfo = posix_getpwnam($user);
-					if (!isset($userInfo["uid"])) {
-						$this->log->alert("Invalid pool user.");
-					} else if (!posix_setuid($userInfo["uid"])) {
-						$this->log->alert("Failed to change pool user.");
-					}
-				}
+			$this->log->notice("Starting process: {$pid}.");
+			$this->pool->run();
+			$this->log->notice("Process {$pid} complete.");
 
-				$this->log->notice("Starting daemon process: {$childPid}.");
-				$this->pool->run();
-				$this->log->notice("Daemon process {$childPid} complete.");
-
-				$this->removePid();
-				exit(0);
-
-			case -1: // Error
-				$msg = pcntl_strerror(pcntl_get_last_error());
-				throw new Exception("Function pcntl_fork() failed: {$msg}");
-
-			default: // Parent
-				$this->log->debug("Forked worker process: {$pid}");
-				if (! $this->writePid($pid)) {
-					posix_kill($pid, SIGTERM);
-					throw new Exception("Failed to create pid file for the daemon process!");
-				}
+			$this->removePid();
+			exit(0);
 		}
     }
 
@@ -325,6 +344,9 @@ class Daemon implements LoggerAwareInterface
         $this->log->notice("Sending shutdown signal to daemon: {$pid}\n");
         posix_kill($pid, SIGTERM);
         $status = posix_get_last_error();
+        if ($status == 0) {
+			$this->removePid();
+		}
 
         return $status;
     }
@@ -339,21 +361,15 @@ class Daemon implements LoggerAwareInterface
 	 */
     public function signal($number, $info = null)
     {
-        $this->log->info("Daemon received signal: {$number}");
+        $this->log->info("Process received signal: {$number}");
 
         switch ($number) {
             case SIGTERM:
+			case SIGINT:
 				$this->pool->shutdown();
 				break;
 
-            case SIGINT:
-				$this->pool->stop();
-                break;
-
             case SIGHUP:
-            	$pool = $this->pool;
-				$this->start();
-				$pool->shutdown();
 				break;
 
             default:

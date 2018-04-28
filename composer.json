@@ -1,41 +1,40 @@
 {
-    "name": "kwhat/legumed",
-    "homepage": "https://github.com/kwhat/legumed",
-    "description": "Multi-thread Beanstalk Job Manager and Daemon",
-    "keywords": ["daemon", "job", "manager", "beanstalk", "pheanstalk", "pthreads", "worker", "pool"],
-    "type": "project",
-    "license": "LGPL-3.0",
-    "authors": [
-        {
-            "name": "Alexander Barker",
-            "email": "alex@1stleg.com",
-            "homepage": "https://github.com/kwhat"
-        }
-    ],
-    "support": {
-        "issues": "https://github.com/kwhat/legumed/issues"
-    },
-    "minimum-stability": "stable",
-    "require": {
-        "php": "^5.6 || >=7.2",
-        "ext-pthreads": ">=2.0",
-        "composer/composer": "^1.5",
-        "monolog/monolog": "^1.22",
-        "pda/pheanstalk": "~3.0",
-        "pimple/pimple": "^3.0",
-        "ulrichsg/getopt-php": "^3.0"
-    },
-    "suggest": {
-        "ext-pcntl": "Recommended for daemon support on Posix systems",
-        "ext-posix": "Recommended for daemon support on Posix systems",
-        "etc-win32service": "Recommended for service support on Windows systems"
-    },
-    "bin": [
-        "bin/legumed"
-    ],
-    "autoload": {
-        "psr-4": {
-            "Legume\\": "src/"
-        }
+  "name": "kwhat/legume",
+  "homepage": "https://github.com/kwhat/legume",
+  "description": "Legume: Multi-thread job manager and daemon for beanstalkd",
+  "keywords": ["daemon", "job", "manager", "beanstalk", "pheanstalk", "pthreads", "worker", "pool"],
+  "type": "project",
+  "license": "LGPL-3.0",
+  "authors": [
+    {
+      "name": "Alexander Barker",
+      "email": "alex@1stleg.com",
+      "homepage": "https://github.com/kwhat"
     }
+  ],
+  "support": {
+    "issues": "https://github.com/kwhat/legume/issues"
+  },
+  "minimum-stability": "stable",
+  "require": {
+    "php": "^5.6 || >=7.2",
+    "ext-pthreads": ">=2.0",
+    "composer/composer": "^1.5",
+    "monolog/monolog": "^1.22",
+    "pda/pheanstalk": "~3.0",
+    "pimple/pimple": "^3.0",
+    "ulrichsg/getopt-php": "^3.0"
+  },
+  "suggest": {
+    "ext-pcntl": "Required for daemon support on Posix systems",
+    "ext-posix": "Recommended for Posix systems"
+  },
+  "bin": [
+    "bin/legumed"
+  ],
+  "autoload": {
+    "psr-4": {
+      "Legume\\": "src/"
+    }
+  }
 }
