@@ -1,12 +1,13 @@
-# Legume: Multi-thread job manager and daemon for beanstalkd
+# Legume: Multi-thread Job Manager and Daemon
 
 Creating and managing a pool of workers for parallel processing can be a challenging endeavor.  Fortunately,
-Legume provides a simple interface for creating a pool to track currently running workers, and adjust
-the pool size based on job load.  The daemon also offers user, group and priority switching for complete control
-of the forked processes.
+Legume provides a lightweight php-pthread implementation capable of connecting to different queues.  Currently only 
+beanstalkd is supported, however RabbitMQ support will be added in the future.  The legume job manager is capable of 
+scaling the number of running workers based on queue demand and will only take jobs it has capacity to process.  Legume 
+also supports high concurrency with low overhead.  The only limiting factor will be the load of the jobs themselves.
 
 ## Usage
-This project has two usage paths, one for running the daemon, and one for queueing worker jobs.
+This project has two usage paths, one for running the daemon, and one for creating and queueing jobs.
 
 ### Daemon Control
 The daemon manager can be accessed via `./bin/legumed --help`.
