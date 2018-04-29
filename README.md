@@ -60,4 +60,4 @@ $client->useTube("ExampleJob")
 
 ## Additional Information
 Up to date source code and documentation available at:
-[https://github.com/kwhat/legumed/](https://github.com/kwhat/legume/)
+[https://github.com/kwhat/legume/](https://github.com/kwhat/legume/)
