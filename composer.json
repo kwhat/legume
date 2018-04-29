@@ -1,7 +1,7 @@
 {
   "name": "kwhat/legume",
   "homepage": "https://github.com/kwhat/legume",
-  "description": "Legume: Multi-thread job manager and daemon for beanstalkd",
+  "description": "Legume: Multi-thread Job Manager and Daemon",
   "keywords": ["daemon", "job", "manager", "beanstalk", "pheanstalk", "pthreads", "worker", "pool"],
   "type": "project",
   "license": "LGPL-3.0",
@@ -19,7 +19,6 @@
   "require": {
     "php": "^5.6 || >=7.2",
     "ext-pthreads": ">=2.0",
-    "composer/composer": "^1.5",
     "monolog/monolog": "^1.22",
     "pda/pheanstalk": "~3.0",
     "pimple/pimple": "^3.0",
