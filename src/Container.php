@@ -18,19 +18,27 @@
  */
 namespace Legume;
 
-use Pimple\Container;
+use Pimple;
 use Psr\Container\ContainerInterface;
 
 /**
- * PSR-11 compliant wrapper for the Pimple dependency injector.
+ * PSR-11 compliant wrapper for the Container dependency injector.
  */
-class Pimple extends Container implements ContainerInterface
+class Container extends Pimple\Container implements ContainerInterface
 {
+	/**
+	 * @param string $id
+	 * @return mixed
+	 */
     public function get($id)
     {
         return parent::offsetGet($id);
     }
 
+	/**
+	 * @param string $id
+	 * @return bool
+	 */
     public function has($id)
     {
         return parent::offsetExists($id);

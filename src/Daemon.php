@@ -57,7 +57,7 @@ class Daemon implements LoggerAwareInterface
 	{
 		$this->autoload = $autoload;
 
-		$this->container = new Pimple();
+		$this->container = new Container();
 		$this->loadDependencies($this->container);
 
 		$this->log = new Logger(basename($_SERVER["SCRIPT_FILENAME"], ".php"));
