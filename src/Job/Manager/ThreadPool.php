@@ -21,7 +21,6 @@ namespace Legume\Job\Manager;
 
 use Legume\Job\ManagerInterface;
 use Legume\Job\QueueAdaptorInterface;
-use Legume\Job\Stackable;
 use Legume\Job\StackableInterface;
 use Legume\Job\Worker\ThreadWorker;
 use Pool;
