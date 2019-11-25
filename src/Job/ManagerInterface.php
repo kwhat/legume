@@ -16,19 +16,19 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 namespace Legume\Job;
 
 use Psr\Log\LoggerAwareInterface;
 
 interface ManagerInterface extends LoggerAwareInterface
 {
-	/**
-	 * Manager constructor.
-	 *
-	 * @param QueueAdaptorInterface $adaptor
-	 * @param string $autoload
-	 */
-    public function __construct(QueueAdaptorInterface $adaptor, $autoload);
+    /**
+     * Manager Constructor.
+     *
+     * @param QueueAdaptorInterface $adaptor
+     */
+    public function __construct(QueueAdaptorInterface $adaptor);
 
     /**
      * A Callable collector that returns a boolean on whether the task can be collected
@@ -40,13 +40,20 @@ interface ManagerInterface extends LoggerAwareInterface
      */
     public function collect($collector = null);
 
-	/**
-	 * Shutdown the Workers in this Pool
-	 */
+    /**
+     * Shutdown the Workers in this Pool.
+     */
     public function shutdown();
 
-	/**
-	 * Runloop for this worker process.
-	 */
-	public function run();
+    /**
+     * Set the maximum number of Workers this Pool can create.
+     *
+     * @param int $size
+     */
+    public function resize(int $size);
+
+    /**
+     * Run loop for this worker process.
+     */
+    public function run();
 }

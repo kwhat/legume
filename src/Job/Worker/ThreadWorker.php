@@ -16,60 +16,54 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 namespace Legume\Job\Worker;
 
+use Legume\Job\WorkerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Worker;
 
-class ThreadWorker extends Worker
+class ThreadWorker extends Worker implements WorkerInterface
 {
-    /** @var string $autoload */
-    protected $autoload;
-
-    /** @var int $jobCount */
-    protected $jobCount;
-
     /** @var int $startTime */
     protected $startTime;
 
+    /** @var LoggerInterface */
+    private $logger;
+
     /**
-     * @param string $autoload
+     * @inheritDoc
      */
-    public function __construct($autoload)
+    public function __construct()
     {
-        $this->autoload = $autoload;
-		$this->log = new NullLogger();
+        $this->logger = new NullLogger();
     }
 
     /**
-     * @inheritdoc
+     * @inheritDoc
      */
     public function run()
     {
-        require($this->autoload);
         $this->startTime = time();
     }
 
     /**
-     * Use the inherit none option by default.
+     * Use the inherit ALL option by default.
      *
-     * @inheritdoc
+     * @inheritDoc
      */
-    public function start($options = PTHREADS_INHERIT_NONE)
+    public function start($options = PTHREADS_INHERIT_ALL)
     {
+        $this->logger->debug("Starting thread worker", array($this->getThreadId(), dechex($options)));
         return parent::start($options);
     }
 
     /**
-     * Sets a logger instance on the object.
-     *
-     * @param LoggerInterface $logger
-     *
-     * @return void
+     * @inheritDoc
      */
     public function setLogger(LoggerInterface $logger)
     {
-        $this->log = $logger;
+        $this->logger = $logger;
     }
 }

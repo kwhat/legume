@@ -21,38 +21,45 @@ namespace Legume\Job;
 
 use Psr\Log\LoggerAwareInterface;
 
-interface QueueAdaptorInterface extends LoggerAwareInterface
+interface StackableInterface extends LoggerAwareInterface
 {
     /**
-     * @param string $name
-     * @param callable|string $callback
+     * @param callable $callable
+     * @param string $id
+     * @param string $payload
      */
-    public function register($name, $callback);
+    public function __construct(callable $callable, $id, $payload);
 
     /**
-     * @param string $name
-     */
-    public function unregister($name);
-
-    /**
-     * @param int|null $timeout
+     * Returns the Job ID for this stackable.
      *
-     * @return StackableInterface|null
+     * @return string
      */
-    public function listen($timeout = null);
+    public function getId();
 
     /**
-     * @param StackableInterface $work
+     * Returns the Job Data associated with this stackable.
+     *
+     * @return string
      */
-    public function complete(StackableInterface $work);
+    public function getPayload();
 
     /**
-     * @param StackableInterface $work
+     * Run the Stackable callable with job id and payload arguments.
      */
-    public function retry(StackableInterface $work);
+    public function run();
 
     /**
-     * @param StackableInterface $work
+     * Determine whether this Stackable has completed, regardless of error.
+     *
+     * @return boolean
      */
-    public function touch(StackableInterface $work);
+    public function isComplete();
+
+    /**
+     * Determine whether this Stackable encountered an error.
+     *
+     * @return boolean
+     */
+    public function isTerminated();
 }

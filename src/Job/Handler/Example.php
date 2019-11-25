@@ -16,41 +16,38 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 namespace Legume\Job\Handler;
 
 use Legume\Job\HandlerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use RuntimeException;
 
 class Example implements HandlerInterface
 {
-    // Setup an optional time limit for this job.
-    const TIMEOUT = 120;
+    /** @var LoggerInterface $logger */
+    protected $logger;
 
-    /** @var LoggerInterface $log */
-    protected $log;
-
-    public function __construct()
-	{
-		$this->log = new NullLogger();
-	}
-
-	/**
-     * @param string $jobId
-     * @param string $workload
-     *
-     * @return int
+    /**
+     * @inheritDoc
      */
-    public function __invoke($jobId, $workload)
+    public function __construct()
     {
-        $this->log->info("{$jobId}: Processing example job for {$workload} seconds...");
+        $this->logger = new NullLogger();
+    }
 
-        $status = sleep($workload);
+    /**
+     * @inheritDoc
+     */
+    public function __invoke($jobId, $payload)
+    {
+        $this->logger->info("{$jobId}: Processing example job for {$payload} seconds...");
+
+        $status = sleep($payload);
         if ($status === false) {
-            $status = 1;
+            throw new RuntimeException("Sleep failed");
         }
-
-        return $status;
     }
 
     /**
@@ -60,6 +57,6 @@ class Example implements HandlerInterface
      */
     public function setLogger(LoggerInterface $logger)
     {
-        $this->log = $logger;
+        $this->logger = $logger;
     }
 }

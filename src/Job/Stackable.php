@@ -16,62 +16,64 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 namespace Legume\Job;
 
 use Exception;
-use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Threaded;
 
-class Stackable extends Threaded implements LoggerAwareInterface
+class Stackable implements StackableInterface
 {
     /** @var callable $callable */
     protected $callable;
 
+    /** @var bool $complete */
+    protected $complete;
+
     /** @var int $id */
     protected $id;
 
-    /** @var LoggerInterface $log */
-    protected $log;
+    /** @var LoggerInterface $logger */
+    protected $logger;
 
-    /** @var string $workload */
-    protected $workload;
+    /** @var string $payload */
+    protected $payload;
 
-    /** @var boolean $complete */
-    protected $complete;
+    /** @var bool $terminated */
+    protected $terminated;
 
     /**
-     * @param $callable $callable
-	 * @param int $id
-	 * @param string $workload
+     * @inheritDoc
      */
-    public function __construct(callable $callable, $id, $workload)
+    public function __construct(callable $callable, $id, $payload)
     {
         $this->callable = $callable;
-        $this->id = $id;
-		$this->log = new NullLogger();
-        $this->workload = $workload;
-
         $this->complete = false;
+        $this->id = $id;
+        $this->logger = new NullLogger();
+        $this->payload = $payload;
+        $this->terminated = false;
     }
 
+    /**
+     * @inheritDoc
+     */
     public function run()
     {
         try {
-            // The dependency injector currently owns the callback, synchronize.
-            $status = call_user_func($this->callable, $this->id, $this->workload);
+            // The dependency injector currently owns the callback, synchronize?
+            call_user_func($this->callable, $this->id, $this->payload);
         } catch (Exception $e) {
-            $this->log->critical($e->getTraceAsString());
-			$status = 255;
+            $this->logger->error($e->getMessage(), $e->getTrace());
+            $this->terminated = true;
         }
 
-		//$this->terminated = ($status > 0);
         $this->complete = true;
     }
 
     /**
-     * @return string
+     * @inheritDoc
      */
     public function getId()
     {
@@ -79,17 +81,15 @@ class Stackable extends Threaded implements LoggerAwareInterface
     }
 
     /**
-     * @return string
+     * @inheritDoc
      */
-    public function getData()
+    public function getPayload()
     {
-        return $this->workload;
+        return $this->payload;
     }
 
     /**
-     * Determine whether this Threaded has completed.
-     *
-     * @return boolean
+     * @inheritDoc
      */
     public function isComplete()
     {
@@ -97,12 +97,18 @@ class Stackable extends Threaded implements LoggerAwareInterface
     }
 
     /**
-     * Sets a logger instance on the object.
-     *
-     * @param LoggerInterface $logger
+     * @inheritDoc
+     */
+    public function isTerminated()
+    {
+        return $this->terminated;
+    }
+
+    /**
+     * @inheritDoc
      */
     public function setLogger(LoggerInterface $logger)
     {
-        $this->log = $logger;
+        $this->logger = $logger;
     }
 }

@@ -16,14 +16,15 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 namespace Legume\Job\QueueAdapter;
 
 use Legume\Job\HandlerInterface;
 use Legume\Job\QueueAdaptorInterface;
 use Legume\Job\Stackable;
+use Legume\Job\StackableInterface;
 use Pheanstalk\Job;
 use Pheanstalk\Pheanstalk;
-use Psr\Container\ContainerInterface as DI;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -32,24 +33,20 @@ class PheanstalkAdapter implements QueueAdaptorInterface
     /** @var Pheanstalk $client */
     protected $client;
 
-    /** @var DI $container */
-    protected $container;
+    /** @var callable[string] $jobs */
+    protected $handlers;
 
-	/** @var callable[string] $jobs */
-	protected $jobs;
+    /** @var LoggerInterface $logger */
+    protected $logger;
 
-    /** @var LoggerInterface $log */
-    protected $log;
-
-	/**
-	 * @param DI $container
-	 */
-    public function __construct(DI $container)
+    /**
+     * @param Pheanstalk $client
+     */
+    public function __construct(Pheanstalk $client)
     {
-        $this->client = $container->get(Pheanstalk::class);
-        $this->container = $container;
-        $this->jobs = array();
-		$this->log = new NullLogger();
+        $this->client = $client;
+        $this->handlers = array();
+        $this->logger = new NullLogger();
     }
 
     /**
@@ -62,27 +59,27 @@ class PheanstalkAdapter implements QueueAdaptorInterface
         }
     }
 
-	/**
-	 * @inheritdoc
-	 */
+    /**
+     * @inheritDoc
+     */
     public function register($name, $callback)
     {
-		$this->jobs[$name] = $callback;
+        $this->handlers[$name] = $callback;
         $this->client->watch($name);
     }
 
-	/**
-	 * @inheritdoc
-	 */
+    /**
+     * @inheritDoc
+     */
     public function unregister($name)
     {
         $this->client->ignore($name);
-        unset($this->jobs[$name]);
+        unset($this->handlers[$name]);
     }
 
-	/**
-	 * @inheritdoc
-	 */
+    /**
+     * @inheritDoc
+     */
     public function listen($timeout = null)
     {
         $stackable = null;
@@ -92,67 +89,67 @@ class PheanstalkAdapter implements QueueAdaptorInterface
             $info = $this->client->statsJob($job);
             $tube = $info["tube"];
 
-            if (isset($this->jobs[$tube])) {
-            	$callable = $this->jobs[$tube];
+            if (isset($this->handlers[$tube])) {
+                $callable = $this->handlers[$tube];
 
-            	if (is_string($callable) && in_array(HandlerInterface::class, class_implements($callable, true))) {
-					/** @var HandlerInterface $callable */
-            		$callable = new $callable();
-					$callable->setLogger($this->log);
-				}
+                if (is_string($callable) && in_array(HandlerInterface::class, class_implements($callable, true))) {
+                    /** @var HandlerInterface $callable */
+                    $callable = new $callable();
+                    $callable->setLogger($this->logger);
+                }
 
-				if (is_callable($callable)) {
-            		$stackable = new Stackable(
-						$callable,
-						$job->getId(),
-						$job->getData()
-					);
-				} else {
-            		$this->log->warning("Failed to locate callable for job '{$tube}'!");
-				}
+                if (is_callable($callable)) {
+                    $stackable = new Stackable(
+                        $callable,
+                        $job->getId(),
+                        $job->getData()
+                    );
+                } else {
+                    $this->logger->warning("Failed to locate callable for job '{$tube}'!");
+                }
             } else {
-				$this->log->warning("No job registered for '{$tube}'!");
-			}
+                $this->logger->warning("No job registered for '{$tube}'!");
+            }
         }
 
         return $stackable;
     }
 
-	/**
-	 * @inheritdoc
-	 */
-    public function touch(Stackable $work)
-    {
-        $job = new Job($work->getId(), $work->getData());
-
-        $this->client->touch($job);
-    }
-
     /**
-     * @inheritdoc
+     * @inheritDoc
      */
-    public function complete(Stackable $work)
+    public function complete(StackableInterface $work)
     {
-        $job = new Job($work->getId(), $work->getData());
+        $job = new Job($work->getId(), $work->getPayload());
 
         $this->client->delete($job);
     }
 
     /**
-     * @inheritdoc
+     * @inheritDoc
      */
-    public function retry(Stackable $work)
+    public function retry(StackableInterface $work)
     {
-        $job = new Job($work->getId(), $work->getData());
+        $job = new Job($work->getId(), $work->getPayload());
 
         $this->client->release($job);
     }
 
-	/**
-	 * @inheritdoc
-	 */
+    /**
+     * @inheritDoc
+     */
+    public function touch(StackableInterface $work)
+    {
+        $job = new Job($work->getId(), $work->getPayload());
+
+        $this->client->touch($job);
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function setLogger(LoggerInterface $logger)
     {
-        $this->log = $logger;
+        $this->logger = $logger;
     }
 }

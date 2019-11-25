@@ -21,16 +21,14 @@ namespace Legume\Job\Manager;
 
 use Legume\Job\ManagerInterface;
 use Legume\Job\QueueAdaptorInterface;
-use Legume\Job\Stackable;
 use Legume\Job\StackableInterface;
-use Legume\Job\Worker\ThreadWorker;
-use Pool;
+use Legume\Job\Worker\ForkWorker;
+use Legume\Job\WorkerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use RuntimeException;
-use Threaded;
 
-class ThreadPool extends Pool implements ManagerInterface
+class ForkPool implements ManagerInterface
 {
     /** @var QueueAdaptorInterface $adaptor */
     protected $adaptor;
@@ -47,28 +45,38 @@ class ThreadPool extends Pool implements ManagerInterface
     /** @var boolean $running */
     protected $running;
 
+    /** @var int $size */
+    protected $size;
+
     /** @var int $startTime */
     protected $startTime;
 
     /** @var int $timeout */
     protected $timeout = 1;
 
-    /** @var ThreadWorker[int] */
+    /** @var ForkWorker[int] */
     protected $workers;
+
+    /** @var string $class */
+    protected $class;
+
+    /** @var array $ctor */
+    protected $ctor;
 
     /**
      * @inheritDoc
      */
     public function __construct(QueueAdaptorInterface $adaptor)
     {
-        parent::__construct(1, ThreadWorker::class, array());
-
         $this->adaptor = $adaptor;
         $this->logger = new NullLogger();
         $this->running = false;
 
         $this->workers = array();
         $this->last = 0;
+
+        $this->class = ForkWorker::class;
+        $this->ctor = array();
     }
 
     /**
@@ -77,7 +85,10 @@ class ThreadPool extends Pool implements ManagerInterface
     public function shutdown()
     {
         // Cleanup the workers and unstack jobs.
-        parent::shutdown();
+        foreach ($this->workers as $i => $worker) {
+            $worker->shutdown();
+            // TODO Unstack work
+        }
 
         $this->running = false;
     }
@@ -87,14 +98,11 @@ class ThreadPool extends Pool implements ManagerInterface
      */
     public function submit($task)
     {
-        $task = Threaded::extend($task);
-
         $next = 0;
         if ($this->size > 0) {
             $next = ($this->last + 1) % $this->size;
             if (isset($this->workers[$next])) {
-                // If our next worker exists,
-                // Find the worker with the least amount of work.
+                // Find the worker with less work than our round-robin choice.
                 foreach ($this->workers as $i => $worker) {
                     if ($worker->getStacked() < $this->workers[$next]->getStacked()) {
                         $next = $i;
@@ -104,10 +112,10 @@ class ThreadPool extends Pool implements ManagerInterface
         }
 
         if (!isset($this->workers[$next])) {
-            // TODO Type hint interface...
+            /** @var WorkerInterface $worker */
             $worker = new $this->class(...$this->ctor);
             $worker->setLogger($this->logger);
-            $worker->start();
+            $worker->start(); // TODO We should pass the ipc path here.
 
             // Only add the worker to the pool after start() due to fork.
             $this->workers[$next] = $worker;
@@ -149,24 +157,24 @@ class ThreadPool extends Pool implements ManagerInterface
     }
 
     /**
-     * @param StackableInterface $work
+     * @param StackableInterface $task
      *
      * @return bool
      */
-    public function collector(StackableInterface $work)
+    public function collector(StackableInterface $task)
     {
-        if ($work->isTerminated()) {
-            $this->logger->warning("Job {$work->getId()} failed and will be removed");
-            $this->adaptor->retry($work);
-        } elseif ($work->isComplete()) {
-            $this->logger->info("Job {$work->getId()} completed successfully");
-            $this->adaptor->complete($work);
+        if ($task->isTerminated()) {
+            $this->logger->warning("Job {$task->getId()} failed and will be removed");
+            $this->adaptor->retry($task);
+        } elseif ($task->isComplete()) {
+            $this->logger->info("Job {$task->getId()} completed successfully");
+            $this->adaptor->complete($task);
         } else {
-            $this->logger->debug("Requesting more time for job {$work->getId()}");
-            $this->adaptor->touch($work);
+            $this->logger->debug("Requesting more time for job {$task->getId()}");
+            $this->adaptor->touch($task);
         }
 
-        return $work->isComplete() || $work->isTerminated();
+        return $task->isComplete();
     }
 
     /**
@@ -219,6 +227,7 @@ class ThreadPool extends Pool implements ManagerInterface
                     $this->workers = $workers;
                 }
             } else {
+                // Sleep for 500 ms
                 sleep($this->timeout);
             }
 
@@ -230,7 +239,7 @@ class ThreadPool extends Pool implements ManagerInterface
 
         // Make sure each remaining child is complete...
         foreach ($this->workers as $worker) {
-            /** @var ThreadWorker $worker */
+            /** @var ForkWorker $worker */
             if (!$worker->isJoined()) {
                 $worker->shutdown();
                 $worker->join();
@@ -245,5 +254,13 @@ class ThreadPool extends Pool implements ManagerInterface
     public function setLogger(LoggerInterface $logger)
     {
         $this->logger = $logger;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function resize($size)
+    {
+        $this->size = $size;
     }
 }

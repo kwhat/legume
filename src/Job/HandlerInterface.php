@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 namespace Legume\Job;
 
 use Psr\Container\ContainerInterface as DI;
@@ -24,7 +25,7 @@ use Psr\Log\LoggerAwareInterface;
 interface HandlerInterface extends LoggerAwareInterface
 {
     /**
-     * Default constructor.
+     * Default Constructor.
      */
     public function __construct();
 
@@ -32,7 +33,7 @@ interface HandlerInterface extends LoggerAwareInterface
      * Dispatcher callback for this job handler.
      *
      * @param string $jobId
-     * @param string $workload
+     * @param string $payload
      */
-    public function __invoke($jobId, $workload);
+    public function __invoke($jobId, $payload);
 }
